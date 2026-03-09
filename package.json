@@ -1,0 +1,24 @@
+{
+  "name": "whatsapp-romantic-bot",
+  "version": "1.0.0",
+  "description": "Automated WhatsApp bot for sending romantic messages",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "node tests/quickTest.js",
+    "test:schedule": "node tests/testSchedule.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.23.0",
+    "node-cron": "^3.0.3",
+    "qrcode-terminal": "^0.12.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["whatsapp", "automation", "bot", "romantic"],
+  "author": "Your Name",
+  "license": "MIT"
+}
