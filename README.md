@@ -21,6 +21,32 @@ An automated WhatsApp bot for testing cron-based message scheduling with randomi
    npm install
    ```
 4. **Configure the bot**:
+   - Copy `.env.example` to `.env`
+   - Edit `.env` and add the target phone number with country code
+   - Example: `TARGET_NUMBER=919876543210` (for India)
+
+## Deployment
+
+### Local Development
+Run locally for testing:
+```bash
+npm start
+```
+
+### Production Deployment (Free 24/7)
+Deploy to Oracle Cloud Free Tier for completely free 24/7 hosting:
+
+📚 **[Complete Deployment Guide](DEPLOYMENT.md)** - Detailed step-by-step instructions
+
+⚡ **[Quick Start Guide](QUICK-START.md)** - 5-minute fast setup
+
+The deployment includes:
+- ✅ Free forever (Oracle Cloud Free Tier)
+- ✅ 24/7 uptime with PM2
+- ✅ Auto-restart on crash
+- ✅ Auto-start on server reboot
+- ✅ Persistent WhatsApp session storage
+4. **Configure the bot**:
    - Open `config.js` and set your girlfriend's phone number
    - Add more messages to the JSON files if desired
 
