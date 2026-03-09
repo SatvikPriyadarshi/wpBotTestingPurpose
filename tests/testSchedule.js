@@ -35,7 +35,7 @@ async function runTest() {
     // Ready handler
     client.on('ready', async () => {
         console.log('\n✅ WhatsApp client is ready!');
-        console.log(`📱 Target number: ${config.girlfriendNumber}`);
+        console.log(`📱 Target number: ${config.targetNumber}`);
         console.log(`⏰ Current time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST\n`);
         
         // Schedule for 15:56 IST
@@ -57,9 +57,9 @@ async function runTest() {
                 console.log(`💌 Message: "${message}"`);
                 
                 // Get the contact first to ensure proper chat ID - EXACT SAME AS QUICKTEST
-                const contact = await client.getNumberId(config.girlfriendNumber);
+                const contact = await client.getNumberId(config.targetNumber);
                 if (!contact) {
-                    throw new Error(`Number ${config.girlfriendNumber} is not registered on WhatsApp`);
+                    throw new Error(`Number ${config.targetNumber} is not registered on WhatsApp`);
                 }
                 
                 console.log(`📞 Resolved chat ID: ${contact._serialized}\n`);

@@ -1,7 +1,7 @@
 {
-  "name": "whatsapp-romantic-bot",
+  "name": "whatsapp-automated-messaging-bot",
   "version": "1.0.0",
-  "description": "Automated WhatsApp bot for sending romantic messages",
+  "description": "Automated WhatsApp bot for testing cron-based message scheduling",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -18,7 +18,7 @@
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
-  "keywords": ["whatsapp", "automation", "bot", "romantic"],
+  "keywords": ["whatsapp", "automation", "bot", "cron", "scheduling", "messaging"],
   "author": "Your Name",
   "license": "MIT"
 }

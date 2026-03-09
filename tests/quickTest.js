@@ -21,19 +21,19 @@ async function quickTest() {
     
     client.on('ready', async () => {
         console.log('\n✅ WhatsApp client is ready!');
-        console.log(`📱 Target number: ${config.girlfriendNumber}`);
+        console.log(`📱 Target number: ${config.targetNumber}`);
         console.log(`⏰ Current time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST\n`);
         
         try {
-            const testMessage = '🧪 Test message from WhatsApp Bot - If you see this, the bot is working! ❤️';
+            const testMessage = '🧪 Test message from WhatsApp Bot - Testing cron scheduling! ✅';
             
             console.log(`📤 Sending test message...`);
             console.log(`💌 Message: "${testMessage}"`);
             
             // Get the contact first to ensure proper chat ID
-            const contact = await client.getNumberId(config.girlfriendNumber);
+            const contact = await client.getNumberId(config.targetNumber);
             if (!contact) {
-                throw new Error(`Number ${config.girlfriendNumber} is not registered on WhatsApp`);
+                throw new Error(`Number ${config.targetNumber} is not registered on WhatsApp`);
             }
             
             console.log(`📞 Resolved chat ID: ${contact._serialized}\n`);
@@ -47,7 +47,7 @@ async function quickTest() {
             console.log(`⏰ Timestamp: ${new Date(result.timestamp * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
             console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
             
-            console.log(`✅ Check your girlfriend's WhatsApp now!`);
+            console.log(`✅ Check the target WhatsApp number now!`);
             console.log(`🛑 Stopping bot in 3 seconds...\n`);
             
             setTimeout(async () => {

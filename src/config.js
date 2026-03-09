@@ -1,10 +1,10 @@
-// Configuration for WhatsApp Romantic Bot
+// Configuration for WhatsApp Automated Messaging Bot
 require('dotenv').config();
 
 module.exports = {
-    // Your girlfriend's phone number (with country code, no +)
-    // Set in .env file: GIRLFRIEND_NUMBER=1234567890
-    girlfriendNumber: process.env.GIRLFRIEND_NUMBER || "YOUR_GIRLFRIEND_PHONE_NUMBER",
+    // Target phone number (with country code, no +)
+    // Set in .env file: TARGET_NUMBER=919876543210
+    targetNumber: process.env.TARGET_NUMBER || process.env.GIRLFRIEND_NUMBER || "YOUR_TARGET_PHONE_NUMBER",
     
     // Timing configuration (in 24-hour format)
     timing: {

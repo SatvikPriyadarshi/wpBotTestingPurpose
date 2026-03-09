@@ -15,7 +15,7 @@ class WhatsAppBot {
 
     // Initialize the bot
     async initialize() {
-        console.log('🚀 Initializing WhatsApp Romantic Bot...');
+        console.log('🚀 Initializing WhatsApp Automated Messaging Bot...');
         console.log('========================================');
         
         // Load messages
@@ -90,7 +90,7 @@ class WhatsAppBot {
         });
     }
 
-    // Send a message to the girlfriend
+    // Send a message to the target number
     async sendMessage(text) {
         if (!this.isReady) {
             throw new Error('WhatsApp client is not ready');
@@ -98,9 +98,9 @@ class WhatsAppBot {
         
         try {
             // Get the contact first to ensure proper chat ID (same as working quickTest)
-            const contact = await this.client.getNumberId(this.config.girlfriendNumber);
+            const contact = await this.client.getNumberId(this.config.targetNumber);
             if (!contact) {
-                throw new Error(`Number ${this.config.girlfriendNumber} is not registered on WhatsApp`);
+                throw new Error(`Number ${this.config.targetNumber} is not registered on WhatsApp`);
             }
             
             const result = await this.client.sendMessage(contact._serialized, text);
