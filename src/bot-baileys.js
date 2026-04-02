@@ -45,12 +45,17 @@ class WhatsAppBot {
         const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
         const { version } = await fetchLatestBaileysVersion();
 
+        console.log('🔗 Connecting to WhatsApp servers...');
+        console.log(`📱 Using WhatsApp version: ${version.join('.')}`);
+
         this.sock = makeWASocket({
             version,
             logger: P({ level: 'silent' }),
             printQRInTerminal: false,
             auth: state,
             browser: ['WhatsApp Bot', 'Chrome', '10.0'],
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000,
         });
 
         // Handle connection updates
@@ -67,10 +72,14 @@ class WhatsAppBot {
 
             if (connection === 'close') {
                 const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-                console.log('🔌 Connection closed. Reconnecting:', shouldReconnect);
+                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const reason = lastDisconnect?.error?.message || 'Unknown';
+                
+                console.log(`🔌 Connection closed. Status: ${statusCode}, Reason: ${reason}`);
+                console.log('Reconnecting:', shouldReconnect);
                 
                 if (shouldReconnect) {
-                    await this.connectToWhatsApp();
+                    setTimeout(() => this.connectToWhatsApp(), 5000);
                 } else {
                     console.log('❌ Logged out. Please restart the bot.');
                     this.isReady = false;
