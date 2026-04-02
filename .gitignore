@@ -10,6 +10,7 @@ session/
 *.session.json
 .wwebjs_auth/
 .wwebjs_cache/
+auth_info_baileys/
 
 # Used messages tracking
 data/usedMessages.json

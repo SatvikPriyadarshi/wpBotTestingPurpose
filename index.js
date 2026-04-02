@@ -1,2 +1,4 @@
-// Main entry point for WhatsApp Romantic Bot
-require('./src/bot');
+// Main entry point for WhatsApp Automated Messaging Bot
+// Using Baileys (lightweight, no Chromium required)
+
+require('./src/bot-baileys');

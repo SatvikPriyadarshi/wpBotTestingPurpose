@@ -10,10 +10,11 @@
     "test:schedule": "node tests/testSchedule.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "^1.23.0",
+    "@whiskeysockets/baileys": "^6.7.0",
     "node-cron": "^3.0.3",
     "qrcode-terminal": "^0.12.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "pino": "^8.16.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
