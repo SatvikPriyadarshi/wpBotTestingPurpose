@@ -10,6 +10,7 @@ An automated WhatsApp bot for testing cron-based message scheduling with randomi
 - **Non-Repeating Logic**: Messages are never repeated until all are used
 - **QR Code Authentication**: Easy WhatsApp Web authentication
 - **Cron-Based Scheduling**: Reliable node-cron implementation with timezone support
+- **Health Check Endpoint**: HTTP endpoint for monitoring bot status
 - **Production Ready**: Error handling, logging, and clean structure
 
 ## Installation
@@ -123,6 +124,47 @@ npm run test:schedule
 ```
 
 Both tests include detailed console logging to verify message delivery.
+
+## Health Check Endpoints
+
+The bot includes HTTP endpoints for monitoring:
+
+### `/health` - Detailed health status
+```bash
+curl http://localhost:3000/health
+```
+
+Returns:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-01T12:00:00.000Z",
+  "uptime": 3600,
+  "uptimeFormatted": "1h",
+  "whatsapp": {
+    "connected": true,
+    "status": "connected"
+  },
+  "messages": {
+    "morning": { "total": 100, "used": 5, "remaining": 95 },
+    "night": { "total": 101, "used": 3, "remaining": 98 },
+    "random": { "total": 191, "used": 10, "remaining": 181 }
+  }
+}
+```
+
+### `/status` - Simple status check
+```bash
+curl http://localhost:3000/status
+```
+
+### `/ping` - Minimal ping endpoint
+```bash
+curl http://localhost:3000/ping
+# Returns: pong
+```
+
+**Use with UptimeRobot or similar services** to monitor your bot 24/7.
 
 ## Troubleshooting
 

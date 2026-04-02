@@ -2,17 +2,20 @@
 
 # WhatsApp Bot - Oracle Cloud Deployment Script
 # Run this script on your Oracle Cloud Ubuntu instance
+# Author: Satvik Priyadarshi
+# Repository: https://github.com/SatvikPriyadarshi/wpBotTestingPurpose
 
 set -e  # Exit on any error
 
-echo "🚀 WhatsApp Bot Deployment Script"
-echo "===================================="
+echo "🚀 WhatsApp Bot Deployment Script for Oracle Cloud"
+echo "====================================================="
 echo ""
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Function to print colored output
@@ -28,38 +31,64 @@ print_info() {
     echo -e "${YELLOW}ℹ️  $1${NC}"
 }
 
+print_step() {
+    echo -e "${BLUE}📦 $1${NC}"
+}
+
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then 
-    print_error "Please do not run this script as root"
+    print_error "Please do not run this script as root. Use: sudo -u ubuntu ./deploy.sh"
+    exit 1
+fi
+
+# Check if running on Ubuntu
+if [ ! -f /etc/os-release ]; then
+    print_error "This script is designed for Ubuntu. Detected OS is not Ubuntu."
+    exit 1
+fi
+
+OS_NAME=$(grep '^NAME=' /etc/os-release | cut -d'"' -f2)
+if [[ ! "$OS_NAME" =~ "Ubuntu" ]]; then
+    print_error "This script is designed for Ubuntu. Detected OS: $OS_NAME"
     exit 1
 fi
 
 # Update system
-print_info "Updating system packages..."
+print_step "Step 1: Updating system packages..."
 sudo apt update && sudo apt upgrade -y
 print_success "System updated"
 
 # Install Node.js 18.x
-print_info "Installing Node.js 18.x..."
+print_step "Step 2: Installing Node.js 18.x..."
 if ! command -v node &> /dev/null; then
+    print_info "Downloading Node.js 18.x..."
     curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
     sudo apt install -y nodejs
     print_success "Node.js installed: $(node --version)"
 else
-    print_success "Node.js already installed: $(node --version)"
+    NODE_VERSION=$(node --version)
+    if [[ "$NODE_VERSION" =~ ^v1[6-9]\. ]]; then
+        print_success "Node.js already installed: $NODE_VERSION (compatible)"
+    else
+        print_error "Node.js version $NODE_VERSION is not compatible. Need Node.js 16+"
+        print_info "Reinstalling Node.js 18.x..."
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt install -y nodejs --reinstall
+        print_success "Node.js reinstalled: $(node --version)"
+    fi
 fi
 
 # Install Git
-print_info "Installing Git..."
+print_step "Step 3: Installing Git..."
 if ! command -v git &> /dev/null; then
     sudo apt install -y git
-    print_success "Git installed"
+    print_success "Git installed: $(git --version)"
 else
-    print_success "Git already installed"
+    print_success "Git already installed: $(git --version)"
 fi
 
 # Install PM2
-print_info "Installing PM2 (Process Manager)..."
+print_step "Step 4: Installing PM2 (Process Manager)..."
 if ! command -v pm2 &> /dev/null; then
     sudo npm install -g pm2
     print_success "PM2 installed"
@@ -68,7 +97,13 @@ else
 fi
 
 # Install Chromium dependencies for Puppeteer
-print_info "Installing Chromium dependencies..."
+print_step "Step 5: Installing Chromium dependencies for WhatsApp Web..."
+print_info "This may take a few minutes..."
+
+# Update package list first
+sudo apt update
+
+# Install essential dependencies
 sudo apt install -y \
     ca-certificates \
     fonts-liberation \
@@ -107,56 +142,93 @@ sudo apt install -y \
     lsb-release \
     wget \
     xdg-utils \
-    > /dev/null 2>&1
-print_success "Dependencies installed"
+    gconf-service \
+    libgconf-2-4 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxshmfence1
+
+print_success "Chromium dependencies installed"
 
 # Clone repository
-print_info "Cloning WhatsApp Bot repository..."
+print_step "Step 6: Setting up bot repository..."
 cd ~
 if [ -d "wpBotTestingPurpose" ]; then
-    print_info "Repository already exists, pulling latest changes..."
+    print_info "Repository already exists, updating..."
     cd wpBotTestingPurpose
+    git stash  # Save any local changes
     git pull origin main
+    print_success "Repository updated"
 else
+    print_info "Cloning repository from GitHub..."
     git clone https://github.com/SatvikPriyadarshi/wpBotTestingPurpose.git
     cd wpBotTestingPurpose
+    print_success "Repository cloned"
 fi
-print_success "Repository ready"
 
 # Install dependencies
-print_info "Installing bot dependencies (this may take a few minutes)..."
+print_step "Step 7: Installing bot dependencies..."
+print_info "This may take 2-3 minutes..."
 npm install
 print_success "Dependencies installed"
 
 # Create .env file if it doesn't exist
+print_step "Step 8: Setting up configuration..."
 if [ ! -f ".env" ]; then
-    print_info "Creating .env configuration file..."
+    print_info "Creating .env configuration file from template..."
     cp .env.example .env
     print_success ".env file created"
+    
+    # Show current configuration
+    echo ""
+    print_info "Current .env configuration:"
+    cat .env
+    echo ""
 else
-    print_info ".env file already exists"
+    print_success ".env file already exists"
+    
+    # Show current configuration
+    echo ""
+    print_info "Current .env configuration:"
+    head -5 .env
+    echo ""
 fi
 
 echo ""
-echo "===================================="
-print_success "Installation Complete!"
-echo "===================================="
+echo "====================================================="
+print_success "✅ Installation Complete!"
+echo "====================================================="
 echo ""
-echo "📝 Next Steps:"
+print_step "📝 NEXT STEPS:"
 echo ""
 echo "1️⃣  Configure your bot:"
-echo "   nano .env"
-echo "   (Change TARGET_NUMBER to your phone number with country code)"
+echo "    nano .env"
+echo "    Change TARGET_NUMBER to your target phone number"
+echo "    Example: TARGET_NUMBER=919876543210 (India)"
 echo ""
 echo "2️⃣  Start the bot:"
-echo "   pm2 start index.js --name whatsapp-bot"
+echo "    pm2 start index.js --name whatsapp-bot"
 echo ""
 echo "3️⃣  View logs and scan QR code:"
-echo "   pm2 logs whatsapp-bot"
+echo "    pm2 logs whatsapp-bot"
+echo "    (Wait for QR code to appear, then scan with WhatsApp)"
 echo ""
-echo "4️⃣  Save PM2 configuration (after bot is running):"
-echo "   pm2 save"
-echo "   pm2 startup"
+echo "4️⃣  Save PM2 configuration (after successful QR scan):"
+echo "    pm2 save"
+echo "    pm2 startup"
+echo "    (Copy and run the command PM2 shows you)"
 echo ""
-echo "📚 For detailed instructions, see DEPLOYMENT.md"
+echo "5️⃣  Monitor your bot:"
+echo "    pm2 status           # Check bot status"
+echo "    pm2 logs whatsapp-bot --lines 50  # View recent logs"
+echo "    pm2 monit            # Monitor resources"
+echo ""
+echo "🔧 Troubleshooting:"
+echo "    If QR code doesn't appear: pm2 restart whatsapp-bot"
+echo "    If bot crashes: pm2 logs whatsapp-bot --lines 100"
+echo "    To update: git pull && npm install && pm2 restart whatsapp-bot"
+echo ""
+echo "📚 Detailed instructions: cat DEPLOYMENT.md"
+echo ""
+echo "💡 Your bot will now run 24/7 on Oracle Cloud for FREE! 🎉"
 echo ""

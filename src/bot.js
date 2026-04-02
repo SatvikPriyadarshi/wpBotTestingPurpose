@@ -3,6 +3,7 @@ const qrcode = require('qrcode-terminal');
 const config = require('./config');
 const MessageManager = require('./messageManager');
 const Scheduler = require('./scheduler');
+const HealthCheckServer = require('./healthCheck');
 
 class WhatsAppBot {
     constructor() {
@@ -11,6 +12,7 @@ class WhatsAppBot {
         this.scheduler = null;
         this.client = null;
         this.isReady = false;
+        this.healthCheck = null;
     }
 
     // Initialize the bot
@@ -39,6 +41,11 @@ class WhatsAppBot {
         
         // Initialize scheduler
         this.scheduler = new Scheduler(this, this.messageManager, config);
+        
+        // Start health check server
+        const healthPort = process.env.PORT || 3000;
+        this.healthCheck = new HealthCheckServer(this, healthPort);
+        this.healthCheck.start();
         
         // Start the client
         console.log('🔗 Connecting to WhatsApp...');
@@ -139,6 +146,10 @@ class WhatsAppBot {
     // Graceful shutdown
     async shutdown() {
         console.log('\n🛑 Shutting down bot...');
+        
+        if (this.healthCheck) {
+            this.healthCheck.stop();
+        }
         
         if (this.scheduler) {
             this.scheduler.stopAllJobs();
