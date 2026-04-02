@@ -17,22 +17,29 @@ class MessageManager {
     // Load all messages from JSON files
     async loadMessages() {
         try {
+            // Helper function to remove BOM and parse JSON
+            const parseJSON = (data) => {
+                // Remove BOM if present
+                const cleanData = data.replace(/^\uFEFF/, '');
+                return JSON.parse(cleanData);
+            };
+
             // Load morning messages
             const morningData = await fs.readFile(this.config.messages.morningFile, 'utf8');
-            this.morningMessages = JSON.parse(morningData);
+            this.morningMessages = parseJSON(morningData);
             
             // Load night messages
             const nightData = await fs.readFile(this.config.messages.nightFile, 'utf8');
-            this.nightMessages = JSON.parse(nightData);
+            this.nightMessages = parseJSON(nightData);
             
             // Load random messages
             const randomData = await fs.readFile(this.config.messages.randomFile, 'utf8');
-            this.randomMessages = JSON.parse(randomData);
+            this.randomMessages = parseJSON(randomData);
             
             // Load used messages
             try {
                 const usedData = await fs.readFile(this.config.messages.usedFile, 'utf8');
-                this.usedMessages = JSON.parse(usedData);
+                this.usedMessages = parseJSON(usedData);
             } catch (error) {
                 // If file doesn't exist, start fresh
                 console.log('No used messages file found, starting fresh...');
