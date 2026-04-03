@@ -101,35 +101,61 @@ class WhatsAppBot {
         this.sock.ev.on('creds.update', saveCreds);
     }
 
-    // Send a message to the target number
-    async sendMessage(text) {
+    // Send a message to the target number with retry logic
+    async sendMessage(text, retries = 3) {
         if (!this.isReady) {
+            console.error('❌ Cannot send message: WhatsApp client is not ready');
             throw new Error('WhatsApp client is not ready');
         }
         
-        try {
-            // Format number for Baileys (add @s.whatsapp.net)
-            const jid = this.config.targetNumber + '@s.whatsapp.net';
-            
-            const result = await this.sock.sendMessage(jid, { text });
-            console.log(`📤 Message sent to ${this.config.targetNumber}`);
-            return result;
-        } catch (error) {
-            console.error('Error sending message:', error);
-            throw error;
+        const jid = this.config.targetNumber + '@s.whatsapp.net';
+        
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                console.log(`📤 Attempting to send message (attempt ${attempt}/${retries})...`);
+                console.log(`📱 Target: ${this.config.targetNumber}`);
+                console.log(`💬 Message preview: ${text.substring(0, 50)}...`);
+                
+                const result = await this.sock.sendMessage(jid, { text }, {
+                    timeout: 30000 // 30 second timeout
+                });
+                
+                console.log(`✅ Message sent successfully on attempt ${attempt}!`);
+                console.log(`📊 Message ID: ${result.key.id}`);
+                return result;
+            } catch (error) {
+                console.error(`❌ Send attempt ${attempt} failed:`, error.message);
+                
+                if (attempt < retries) {
+                    const waitTime = attempt * 5000; // 5s, 10s, 15s
+                    console.log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                } else {
+                    console.error(`❌ All ${retries} send attempts failed!`);
+                    console.error('Full error:', error);
+                    throw error;
+                }
+            }
         }
     }
 
     // Send a test message immediately
     async sendTestMessage(category = 'morning') {
-        console.log(`Sending test ${category} message...`);
+        console.log(`\n🧪 Testing ${category} message send...`);
+        console.log(`⏰ Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+        
         try {
             const message = await this.messageManager.getRandomMessage(category);
+            console.log(`📝 Selected message: "${message.substring(0, 100)}..."`);
+            
             await this.sendMessage(message);
-            console.log(`✅ Test ${category} message sent: ${message.substring(0, 50)}...`);
+            
+            console.log(`✅ ${category} message sent successfully!`);
+            console.log(`📊 Stats updated\n`);
             return true;
         } catch (error) {
-            console.error(`❌ Failed to send test ${category} message:`, error);
+            console.error(`❌ Failed to send ${category} message after all retries`);
+            console.error('Error details:', error.message);
             return false;
         }
     }
