@@ -1,10 +1,14 @@
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const P = require('pino');
+const fs = require('fs');
+const path = require('path');
 const config = require('./config');
 const MessageManager = require('./messageManager');
 const Scheduler = require('./scheduler');
 const HealthCheckServer = require('./healthCheck');
+
+const AUTH_DIR = './auth_info_baileys';
 
 class WhatsAppBot {
     constructor() {
@@ -14,6 +18,8 @@ class WhatsAppBot {
         this.sock = null;
         this.isReady = false;
         this.healthCheck = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 10;
     }
 
     // Initialize the bot
@@ -41,8 +47,20 @@ class WhatsAppBot {
         await this.connectToWhatsApp();
     }
 
+    clearAuthSession() {
+        console.log('🗑️ Clearing corrupted auth session...');
+        try {
+            if (fs.existsSync(AUTH_DIR)) {
+                fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+                console.log('Auth session cleared. You will need to scan QR code again.');
+            }
+        } catch (err) {
+            console.error('Failed to clear auth session:', err.message);
+        }
+    }
+
     async connectToWhatsApp() {
-        const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
+        const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
         const { version } = await fetchLatestBaileysVersion();
 
         console.log('🔗 Connecting to WhatsApp servers...');
@@ -58,7 +76,6 @@ class WhatsAppBot {
             defaultQueryTimeoutMs: 60000,
         });
 
-        // Handle connection updates
         this.sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
 
@@ -71,33 +88,53 @@ class WhatsAppBot {
             }
 
             if (connection === 'close') {
-                const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 const reason = lastDisconnect?.error?.message || 'Unknown';
-                
+                this.isReady = false;
+
                 console.log(`🔌 Connection closed. Status: ${statusCode}, Reason: ${reason}`);
-                console.log('Reconnecting:', shouldReconnect);
-                
-                if (shouldReconnect) {
-                    setTimeout(() => this.connectToWhatsApp(), 5000);
-                } else {
-                    console.log('❌ Logged out. Please restart the bot.');
-                    this.isReady = false;
+
+                if (statusCode === DisconnectReason.loggedOut) {
+                    console.log('❌ Logged out. Clearing session — restart to re-scan QR.');
+                    this.clearAuthSession();
+                    return;
                 }
+
+                // Bad MAC / session corruption — clear session and force re-auth
+                if (statusCode === DisconnectReason.badSession || statusCode === 500) {
+                    console.log('⚠️ Bad session detected. Clearing auth and reconnecting...');
+                    this.clearAuthSession();
+                    this.reconnectAttempts = 0;
+                    setTimeout(() => this.connectToWhatsApp(), 5000);
+                    return;
+                }
+
+                this.reconnectAttempts++;
+                if (this.reconnectAttempts > this.maxReconnectAttempts) {
+                    console.error(`❌ Max reconnect attempts (${this.maxReconnectAttempts}) reached. Clearing session...`);
+                    this.clearAuthSession();
+                    this.reconnectAttempts = 0;
+                    setTimeout(() => this.connectToWhatsApp(), 10000);
+                    return;
+                }
+
+                const delay = Math.min(5000 * this.reconnectAttempts, 60000);
+                console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                setTimeout(() => this.connectToWhatsApp(), delay);
+
             } else if (connection === 'open') {
                 console.log('\n✅ WhatsApp client is ready!');
                 console.log('🤖 Bot is now active and will send messages automatically');
                 this.isReady = true;
-                
-                // Schedule messages
+                this.reconnectAttempts = 0;
+
+                // scheduleDailyMessages now reuses today's times if already set
                 this.scheduler.scheduleDailyMessages();
-                
-                // Show initial stats
+
                 this.showStats();
             }
         });
 
-        // Save credentials whenever they update
         this.sock.ev.on('creds.update', saveCreds);
     }
 
