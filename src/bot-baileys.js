@@ -2,7 +2,6 @@ const { default: makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLat
 const qrcode = require('qrcode-terminal');
 const P = require('pino');
 const fs = require('fs');
-const path = require('path');
 const config = require('./config');
 const MessageManager = require('./messageManager');
 const Scheduler = require('./scheduler');
@@ -109,17 +108,19 @@ class WhatsAppBot {
                     return;
                 }
 
+                // Do NOT delete auth here — transient disconnects (515, 408, network) are common.
+                // Clearing session after N failures forced unnecessary QR rescans. Only clear on
+                // loggedOut, badSession, or explicit Bad MAC recovery paths above.
                 this.reconnectAttempts++;
+                const cappedAttempt = Math.min(this.reconnectAttempts, 12);
+                const delay = Math.min(5000 * cappedAttempt, 120000);
                 if (this.reconnectAttempts > this.maxReconnectAttempts) {
-                    console.error(`❌ Max reconnect attempts (${this.maxReconnectAttempts}) reached. Clearing session...`);
-                    this.clearAuthSession();
-                    this.reconnectAttempts = 0;
-                    setTimeout(() => this.connectToWhatsApp(), 10000);
-                    return;
+                    console.warn(
+                        `⚠️ Many reconnect failures (${this.reconnectAttempts}). ` +
+                            `Keeping saved session — will retry (network/server blips are normal).`
+                    );
                 }
-
-                const delay = Math.min(5000 * this.reconnectAttempts, 60000);
-                console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts})...`);
                 setTimeout(() => this.connectToWhatsApp(), delay);
 
             } else if (connection === 'open') {
