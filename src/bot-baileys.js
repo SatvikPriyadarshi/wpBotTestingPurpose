@@ -19,6 +19,33 @@ class WhatsAppBot {
         this.healthCheck = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 10;
+        this.reconnectTimer = null;
+        this._connecting = false;
+        /** When true, connection 'close' is from our own destroySocket — do not schedule reconnect */
+        this._closingForReconnect = false;
+    }
+
+    /**
+     * Close the current socket before opening a new one. Without this, each reconnect
+     * can leave zombie sockets and cause endless 515 / reconnect loops.
+     */
+    async destroySocket() {
+        const old = this.sock;
+        this.sock = null;
+        this.isReady = false;
+        if (!old) return;
+        this._closingForReconnect = true;
+        try {
+            if (typeof old.end === 'function') {
+                await old.end(new Error('Reconnecting'));
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        // If 'close' never fires, do not leave the flag set forever
+        setTimeout(() => {
+            if (this._closingForReconnect) this._closingForReconnect = false;
+        }, 5000);
     }
 
     // Initialize the bot
@@ -59,6 +86,14 @@ class WhatsAppBot {
     }
 
     async connectToWhatsApp() {
+        if (this._connecting) {
+            console.log('⏳ Connection attempt already in progress, skipping duplicate');
+            return;
+        }
+        this._connecting = true;
+        try {
+            await this.destroySocket();
+
         const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
         const { version } = await fetchLatestBaileysVersion();
 
@@ -87,6 +122,10 @@ class WhatsAppBot {
             }
 
             if (connection === 'close') {
+                if (this._closingForReconnect) {
+                    this._closingForReconnect = false;
+                    return;
+                }
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 const reason = lastDisconnect?.error?.message || 'Unknown';
                 this.isReady = false;
@@ -104,24 +143,39 @@ class WhatsAppBot {
                     console.log('⚠️ Bad session detected. Clearing auth and reconnecting...');
                     this.clearAuthSession();
                     this.reconnectAttempts = 0;
-                    setTimeout(() => this.connectToWhatsApp(), 5000);
+                    if (this.reconnectTimer) {
+                        clearTimeout(this.reconnectTimer);
+                        this.reconnectTimer = null;
+                    }
+                    this.reconnectTimer = setTimeout(() => {
+                        this.reconnectTimer = null;
+                        this.connectToWhatsApp().catch((e) => console.error('Reconnect failed:', e));
+                    }, 5000);
                     return;
                 }
 
                 // Do NOT delete auth here — transient disconnects (515, 408, network) are common.
-                // Clearing session after N failures forced unnecessary QR rescans. Only clear on
-                // loggedOut, badSession, or explicit Bad MAC recovery paths above.
                 this.reconnectAttempts++;
                 const cappedAttempt = Math.min(this.reconnectAttempts, 12);
                 const delay = Math.min(5000 * cappedAttempt, 120000);
-                if (this.reconnectAttempts > this.maxReconnectAttempts) {
+                if (
+                    this.reconnectAttempts > this.maxReconnectAttempts &&
+                    this.reconnectAttempts % 25 === 0
+                ) {
                     console.warn(
-                        `⚠️ Many reconnect failures (${this.reconnectAttempts}). ` +
-                            `Keeping saved session — will retry (network/server blips are normal).`
+                        `⚠️ Reconnect still failing (${this.reconnectAttempts} tries). ` +
+                            'Session kept on disk — phone may still show Linked while server reconnects.'
                     );
                 }
                 console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts})...`);
-                setTimeout(() => this.connectToWhatsApp(), delay);
+                if (this.reconnectTimer) {
+                    clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
+                }
+                this.reconnectTimer = setTimeout(() => {
+                    this.reconnectTimer = null;
+                    this.connectToWhatsApp().catch((e) => console.error('Reconnect failed:', e));
+                }, delay);
 
             } else if (connection === 'open') {
                 console.log('\n✅ WhatsApp client is ready!');
@@ -137,6 +191,21 @@ class WhatsAppBot {
         });
 
         this.sock.ev.on('creds.update', saveCreds);
+        } finally {
+            this._connecting = false;
+        }
+    }
+
+    /**
+     * Used by scheduler when the socket was down at send time — wait for reconnect instead of failing instantly.
+     */
+    async waitForReady(timeoutMs = 180000, pollMs = 8000) {
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            if (this.isReady && this.sock) return true;
+            await new Promise((r) => setTimeout(r, pollMs));
+        }
+        return false;
     }
 
     // Send a message to the target number with retry logic

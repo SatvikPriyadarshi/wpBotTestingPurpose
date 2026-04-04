@@ -99,6 +99,16 @@ class Scheduler {
         const job = cron.schedule(cronExpression, async () => {
             try {
                 console.log(`[${new Date().toISOString()}] Sending ${description}...`);
+                if (!this.bot.isReady && typeof this.bot.waitForReady === 'function') {
+                    console.warn(`${description}: client not connected — waiting up to 3 minutes...`);
+                    const ok = await this.bot.waitForReady(180000, 8000);
+                    if (!ok) {
+                        console.error(
+                            `[${new Date().toISOString()}] ${description} skipped: still not connected after wait`
+                        );
+                        return;
+                    }
+                }
                 const message = await this.messageManager.getRandomMessage(category);
                 await this.bot.sendMessage(message);
                 console.log(`[${new Date().toISOString()}] ${description} sent successfully`);
